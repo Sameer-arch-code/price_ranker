@@ -31,13 +31,6 @@
     }
     .placeholder svg { width: 48px; height: 48px; stroke: #bbb; }
 
-    .flip-btn {
-      position: absolute; top: 10px; right: 10px;
-      background: rgba(0,0,0,0.45); border: none; border-radius: 50%;
-      width: 36px; height: 36px; color: white; font-size: 20px;
-      cursor: pointer; display: none; align-items: center; justify-content: center;
-    }
-
     .btn-row { display: flex; gap: 10px; margin-top: 12px; }
     button {
       flex: 1; padding: 10px 0; border-radius: 8px;
@@ -86,7 +79,6 @@
     </div>
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas"></canvas>
-    <button class="flip-btn" id="flipBtn" onclick="flipCamera()" title="Switch camera">⟳</button>
   </div>
 
   <div class="btn-row">
@@ -97,7 +89,6 @@
 
   <p class="status" id="status">Press "Start camera" to begin.</p>
 
-  <!-- Captured photo -->
   <div id="result-box">
     <p class="result-label">📷 Captured photo</p>
     <img id="resultImg" alt="Captured photo" />
@@ -107,7 +98,6 @@
     </div>
   </div>
 
-  <!-- Result from backend -->
   <div id="output-box">
     <p class="output-label">🖥️ Result from backend</p>
     <img id="outputImg" alt="Processed result" />
@@ -115,31 +105,27 @@
       <button onclick="downloadResult()">⬇ Download result</button>
     </div>
   </div>
-
 </div>
 
 <script>
-  // ✏️ Paste your Cloudflare URL here every time you restart the notebook
   const BACKEND_URL = 'https://mathematics-lifestyle-entire-attacks.trycloudflare.com/process';
 
   let stream = null;
-  let facingMode = 'environment';
   let capturedDataUrl = null;
   let resultDataUrl = null;
 
-  const video      = document.getElementById('video');
-  const canvas     = document.getElementById('canvas');
+  const video       = document.getElementById('video');
+  const canvas      = document.getElementById('canvas');
   const placeholder = document.getElementById('placeholder');
-  const status     = document.getElementById('status');
-  const startBtn   = document.getElementById('startBtn');
-  const captureBtn = document.getElementById('captureBtn');
-  const retakeBtn  = document.getElementById('retakeBtn');
-  const flipBtn    = document.getElementById('flipBtn');
-  const resultBox  = document.getElementById('result-box');
-  const resultImg  = document.getElementById('resultImg');
-  const outputBox  = document.getElementById('output-box');
-  const outputImg  = document.getElementById('outputImg');
-  const sendBtn    = document.getElementById('sendBtn');
+  const status      = document.getElementById('status');
+  const startBtn    = document.getElementById('startBtn');
+  const captureBtn  = document.getElementById('captureBtn');
+  const retakeBtn   = document.getElementById('retakeBtn');
+  const resultBox   = document.getElementById('result-box');
+  const resultImg   = document.getElementById('resultImg');
+  const outputBox   = document.getElementById('output-box');
+  const outputImg   = document.getElementById('outputImg');
+  const sendBtn     = document.getElementById('sendBtn');
 
   function setStatus(msg, isErr) {
     status.innerHTML = msg;
@@ -147,30 +133,44 @@
   }
 
   async function startCamera() {
-    try {
-      if (stream) stream.getTracks().forEach(t => t.stop());
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: { ideal: 1280 } }
-      });
-      video.srcObject = stream;
-      video.style.display = 'block';
-      canvas.style.display = 'none';
-      placeholder.style.display = 'none';
-      flipBtn.style.display = 'flex';
-      startBtn.disabled = true;
-      captureBtn.disabled = false;
-      retakeBtn.style.display = 'none';
-      resultBox.style.display = 'none';
-      outputBox.style.display = 'none';
-      setStatus('Camera live. Press "Capture" when ready.');
-    } catch (e) {
-      setStatus('Could not access camera: ' + e.message, true);
-    }
-  }
+    startBtn.disabled = true;
+    setStatus('Starting camera...');
 
-  async function flipCamera() {
-    facingMode = facingMode === 'environment' ? 'user' : 'environment';
-    await startCamera();
+    if (stream) stream.getTracks().forEach(t => t.stop());
+
+    // Try back camera first, fall back to any camera
+    const constraints = [
+      { video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 } } },
+      { video: { facingMode: 'environment', width: { ideal: 1280 } } },
+      { video: true }
+    ];
+
+    let started = false;
+    for (const c of constraints) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(c);
+        started = true;
+        break;
+      } catch (e) {
+        // try next constraint
+      }
+    }
+
+    if (!started) {
+      setStatus('Could not access camera. Please allow camera permission and try again.', true);
+      startBtn.disabled = false;
+      return;
+    }
+
+    video.srcObject = stream;
+    video.style.display = 'block';
+    canvas.style.display = 'none';
+    placeholder.style.display = 'none';
+    captureBtn.disabled = false;
+    retakeBtn.style.display = 'none';
+    resultBox.style.display = 'none';
+    outputBox.style.display = 'none';
+    setStatus('Camera live. Press "Capture" when ready.');
   }
 
   function capturePhoto() {
@@ -183,7 +183,6 @@
     canvas.style.display = 'block';
     captureBtn.disabled = true;
     retakeBtn.style.display = 'flex';
-    flipBtn.style.display = 'none';
 
     resultImg.src = capturedDataUrl;
     resultBox.style.display = 'block';
@@ -198,7 +197,6 @@
     outputBox.style.display = 'none';
     retakeBtn.style.display = 'none';
     captureBtn.disabled = false;
-    flipBtn.style.display = 'flex';
     video.style.display = 'block';
     canvas.style.display = 'none';
     setStatus('Camera live. Press "Capture" when ready.');
@@ -218,7 +216,6 @@
       });
 
       if (!res.ok) throw new Error('Server returned ' + res.status);
-
       const json = await res.json();
       if (json.error) throw new Error(json.error);
 
