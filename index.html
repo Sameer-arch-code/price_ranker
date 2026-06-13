@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Camera Capture</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f5f5f5; display: flex; justify-content: center; padding: 2rem 1rem; }
+    .wrap { width: 100%; max-width: 420px; }
+    h2 { font-size: 18px; font-weight: 500; margin-bottom: 1rem; color: #111; }
+
+    .video-box {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4/3;
+      background: #e8e8e8;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .video-box video, .video-box canvas {
+      width: 100%; height: 100%; object-fit: cover; display: none;
+    }
+    .placeholder {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 10px; color: #999; font-size: 14px;
+    }
+    .placeholder svg { width: 48px; height: 48px; stroke: #bbb; }
+
+    .flip-btn {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(0,0,0,0.45); border: none; border-radius: 50%;
+      width: 36px; height: 36px; color: white; font-size: 20px;
+      cursor: pointer; display: none; align-items: center; justify-content: center;
+    }
+
+    .btn-row { display: flex; gap: 10px; margin-top: 12px; }
+    button {
+      flex: 1; padding: 10px 0; border-radius: 8px;
+      border: 1px solid #ccc; background: white; color: #111;
+      font-size: 14px; cursor: pointer; transition: background 0.15s;
+    }
+    button:hover { background: #f0f0f0; }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    button.primary { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+    button.primary:hover { background: #bfdbfe; }
+
+    .status { font-size: 13px; color: #666; margin-top: 10px; min-height: 18px; }
+    .status.err { color: #dc2626; }
+
+    #result-box { margin-top: 16px; display: none; }
+    #result-box img { width: 100%; border-radius: 12px; border: 1px solid #ddd; }
+    .result-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+    .tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 12px; padding: 3px 10px; border-radius: 8px;
+      background: #dcfce7; color: #166534; margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h2>📸 Camera Capture</h2>
+
+  <div class="video-box" id="videoBox">
+    <div class="placeholder" id="placeholder">
+      <!-- camera icon -->
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+      <span>Camera preview</span>
+    </div>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+    <button class="flip-btn" id="flipBtn" onclick="flipCamera()" title="Switch camera">⟳</button>
+  </div>
+
+  <div class="btn-row">
+    <button class="primary" id="startBtn" onclick="startCamera()">▶ Start camera</button>
+    <button id="captureBtn" onclick="capturePhoto()" disabled>⬤ Capture</button>
+    <button id="retakeBtn" onclick="retake()" style="display:none">↺ Retake</button>
+  </div>
+
+  <p class="status" id="status">Press "Start camera" to begin.</p>
+
+  <div id="result-box">
+    <p class="result-label">📷 Captured photo</p>
+    <img id="resultImg" alt="Captured photo" />
+    <div><span class="tag">✓ Ready to send to backend</span></div>
+    <div class="btn-row" style="margin-top:10px">
+      <button onclick="downloadPhoto()">⬇ Download</button>
+      <button onclick="copyBase64()">⎘ Copy base64</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let stream = null;
+  let facingMode = 'environment';
+  let capturedDataUrl = null;
+
+  const video     = document.getElementById('video');
+  const canvas    = document.getElementById('canvas');
+  const placeholder = document.getElementById('placeholder');
+  const status    = document.getElementById('status');
+  const startBtn  = document.getElementById('startBtn');
+  const captureBtn = document.getElementById('captureBtn');
+  const retakeBtn = document.getElementById('retakeBtn');
+  const flipBtn   = document.getElementById('flipBtn');
+  const resultBox = document.getElementById('result-box');
+  const resultImg = document.getElementById('resultImg');
+
+  function setStatus(msg, isErr) {
+    status.textContent = msg;
+    status.className = 'status' + (isErr ? ' err' : '');
+  }
+
+  async function startCamera() {
+    try {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode, width: { ideal: 1280 } }
+      });
+      video.srcObject = stream;
+      video.style.display = 'block';
+      canvas.style.display = 'none';
+      placeholder.style.display = 'none';
+      flipBtn.style.display = 'flex';
+      startBtn.disabled = true;
+      captureBtn.disabled = false;
+      retakeBtn.style.display = 'none';
+      resultBox.style.display = 'none';
+      setStatus('Camera live. Press "Capture" when ready.');
+    } catch (e) {
+      setStatus('Could not access camera: ' + e.message, true);
+    }
+  }
+
+  async function flipCamera() {
+    facingMode = facingMode === 'environment' ? 'user' : 'environment';
+    await startCamera();
+  }
+
+  function capturePhoto() {
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    capturedDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+
+    video.style.display = 'none';
+    canvas.style.display = 'block';
+    captureBtn.disabled = true;
+    retakeBtn.style.display = 'flex';
+    flipBtn.style.display = 'none';
+
+    resultImg.src = capturedDataUrl;
+    resultBox.style.display = 'block';
+    setStatus('Photo captured — ' + canvas.width + ' × ' + canvas.height + 'px');
+  }
+
+  function retake() {
+    capturedDataUrl = null;
+    resultBox.style.display = 'none';
+    retakeBtn.style.display = 'none';
+    captureBtn.disabled = false;
+    flipBtn.style.display = 'flex';
+    video.style.display = 'block';
+    canvas.style.display = 'none';
+    setStatus('Camera live. Press "Capture" when ready.');
+  }
+
+  function downloadPhoto() {
+    if (!capturedDataUrl) return;
+    const a = document.createElement('a');
+    a.href = capturedDataUrl;
+    a.download = 'photo_' + Date.now() + '.jpg';
+    a.click();
+  }
+
+  function copyBase64() {
+    if (!capturedDataUrl) return;
+    navigator.clipboard.writeText(capturedDataUrl)
+      .then(() => setStatus('Base64 copied to clipboard!'))
+      .catch(() => setStatus('Copy failed — try downloading instead.', true));
+  }
+</script>
+</body>
+</html>
