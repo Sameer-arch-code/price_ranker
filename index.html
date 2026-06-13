@@ -6,14 +6,14 @@
   <title>Camera Capture</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: sans-serif; background: #f5f5f5; display: flex; justify-content: center; padding: 2rem 1rem; }
-    .wrap { width: 100%; max-width: 420px; }
+    body { font-family: sans-serif; background: #f5f5f5; display: flex; justify-content: center; padding: 1rem; }
+    .wrap { width: 100%; max-width: 720px; }
     h2 { font-size: 18px; font-weight: 500; margin-bottom: 1rem; color: #111; }
 
     .video-box {
       position: relative;
       width: 100%;
-      aspect-ratio: 4/3;
+      aspect-ratio: 16/9;
       background: #e8e8e8;
       border-radius: 12px;
       border: 1px solid #ddd;
@@ -48,13 +48,15 @@
     .status { font-size: 13px; color: #666; margin-top: 10px; min-height: 18px; }
     .status.err { color: #dc2626; }
 
-    #result-box { margin-top: 16px; display: none; }
-    #result-box img { width: 100%; border-radius: 12px; border: 1px solid #ddd; }
-    .result-label { font-size: 12px; color: #888; margin-bottom: 6px; }
-
-    #output-box { margin-top: 16px; display: none; }
-    #output-box img { width: 100%; border-radius: 12px; border: 1px solid #ddd; }
-    .output-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+    .images-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .img-box { display: none; }
+    .img-box img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 10px; border: 1px solid #ddd; }
+    .img-label { font-size: 12px; color: #888; margin-bottom: 6px; }
 
     .spinner {
       display: inline-block; width: 12px; height: 12px;
@@ -85,34 +87,28 @@
     <button class="primary" id="startBtn" onclick="startCamera()">▶ Start camera</button>
     <button id="captureBtn" onclick="capturePhoto()" disabled>⬤ Capture</button>
     <button id="retakeBtn" onclick="retake()" style="display:none">↺ Retake</button>
+    <button class="green" onclick="sendToBackend()" id="sendBtn" style="display:none">↑ Send</button>
   </div>
 
   <p class="status" id="status">Press "Start camera" to begin.</p>
 
-  <div id="result-box">
-    <p class="result-label">📷 Captured photo</p>
-    <img id="resultImg" alt="Captured photo" />
-    <div class="btn-row" style="margin-top:10px">
-      <button onclick="downloadPhoto()">⬇ Download</button>
-      <button class="green" onclick="sendToBackend()" id="sendBtn">↑ Send to backend</button>
+  <div class="images-row">
+    <div class="img-box" id="result-box">
+      <p class="img-label">📷 Captured</p>
+      <img id="resultImg" alt="Captured photo" />
     </div>
-  </div>
-
-  <div id="output-box">
-    <p class="output-label">🖥️ Result from backend</p>
-    <img id="outputImg" alt="Processed result" />
-    <div class="btn-row" style="margin-top:10px">
-      <button onclick="downloadResult()">⬇ Download result</button>
+    <div class="img-box" id="output-box">
+      <p class="img-label">🖥️ Result</p>
+      <img id="outputImg" alt="Processed result" />
     </div>
   </div>
 </div>
 
 <script>
-  const BACKEND_URL = 'https://mathematics-lifestyle-entire-attacks.trycloudflare.com/process';
+  const BACKEND_URL = 'https://hobby-happens-invitations-games.trycloudflare.com/process';
 
   let stream = null;
   let capturedDataUrl = null;
-  let resultDataUrl = null;
 
   const video       = document.getElementById('video');
   const canvas      = document.getElementById('canvas');
@@ -121,11 +117,11 @@
   const startBtn    = document.getElementById('startBtn');
   const captureBtn  = document.getElementById('captureBtn');
   const retakeBtn   = document.getElementById('retakeBtn');
+  const sendBtn     = document.getElementById('sendBtn');
   const resultBox   = document.getElementById('result-box');
   const resultImg   = document.getElementById('resultImg');
   const outputBox   = document.getElementById('output-box');
   const outputImg   = document.getElementById('outputImg');
-  const sendBtn     = document.getElementById('sendBtn');
 
   function setStatus(msg, isErr) {
     status.innerHTML = msg;
@@ -138,7 +134,6 @@
 
     if (stream) stream.getTracks().forEach(t => t.stop());
 
-    // Try back camera first, fall back to any camera
     const constraints = [
       { video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 } } },
       { video: { facingMode: 'environment', width: { ideal: 1280 } } },
@@ -151,9 +146,7 @@
         stream = await navigator.mediaDevices.getUserMedia(c);
         started = true;
         break;
-      } catch (e) {
-        // try next constraint
-      }
+      } catch (e) {}
     }
 
     if (!started) {
@@ -168,6 +161,7 @@
     placeholder.style.display = 'none';
     captureBtn.disabled = false;
     retakeBtn.style.display = 'none';
+    sendBtn.style.display = 'none';
     resultBox.style.display = 'none';
     outputBox.style.display = 'none';
     setStatus('Camera live. Press "Capture" when ready.');
@@ -183,19 +177,20 @@
     canvas.style.display = 'block';
     captureBtn.disabled = true;
     retakeBtn.style.display = 'flex';
+    sendBtn.style.display = 'flex';
 
     resultImg.src = capturedDataUrl;
     resultBox.style.display = 'block';
     outputBox.style.display = 'none';
-    setStatus('Photo captured — ' + canvas.width + ' × ' + canvas.height + 'px');
+    setStatus('Photo captured. Press "Send" to process.');
   }
 
   function retake() {
     capturedDataUrl = null;
-    resultDataUrl = null;
     resultBox.style.display = 'none';
     outputBox.style.display = 'none';
     retakeBtn.style.display = 'none';
+    sendBtn.style.display = 'none';
     captureBtn.disabled = false;
     video.style.display = 'block';
     canvas.style.display = 'none';
@@ -219,31 +214,15 @@
       const json = await res.json();
       if (json.error) throw new Error(json.error);
 
-      resultDataUrl = json.image;
-      outputImg.src = resultDataUrl;
+      outputImg.src = json.image;
       outputBox.style.display = 'block';
-      setStatus('✅ Done! Result shown below.');
+      resultBox.style.display = 'none';
+      setStatus('✅ Done!');
     } catch (e) {
       setStatus('❌ Error: ' + e.message, true);
     }
 
     sendBtn.disabled = false;
-  }
-
-  function downloadPhoto() {
-    if (!capturedDataUrl) return;
-    const a = document.createElement('a');
-    a.href = capturedDataUrl;
-    a.download = 'captured_' + Date.now() + '.jpg';
-    a.click();
-  }
-
-  function downloadResult() {
-    if (!resultDataUrl) return;
-    const a = document.createElement('a');
-    a.href = resultDataUrl;
-    a.download = 'result_' + Date.now() + '.jpg';
-    a.click();
   }
 </script>
 </body>
