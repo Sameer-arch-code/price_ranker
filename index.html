@@ -9,12 +9,8 @@
     html, body { width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background: #111; }
 
     .video-box {
-      position: fixed;
-      inset: 0;
-      background: #111;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: fixed; inset: 0; background: #111;
+      display: flex; align-items: center; justify-content: center;
     }
     .video-box video, .video-box canvas, .video-box img {
       width: 100%; height: 100%; object-fit: cover; display: none;
@@ -25,6 +21,58 @@
     }
     .placeholder svg { width: 48px; height: 48px; stroke: #444; }
 
+    /* Focus ring */
+    #focusRing {
+      position: fixed; width: 64px; height: 64px;
+      border: 2px solid #facc15; border-radius: 4px;
+      pointer-events: none; display: none; z-index: 25;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
+      animation: focusPulse 0.35s ease-out forwards;
+    }
+    @keyframes focusPulse {
+      0%   { opacity: 1; width: 80px; height: 80px; }
+      100% { opacity: 1; width: 64px; height: 64px; }
+    }
+    #focusRing.fading { animation: focusFade 0.4s ease-out forwards; }
+    @keyframes focusFade { to { opacity: 0; } }
+
+    /* Zoom bar */
+    #zoomBar {
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+      display: none; align-items: center; gap: 10px; z-index: 20;
+      background: rgba(0,0,0,0.45); backdrop-filter: blur(8px);
+      padding: 8px 14px; border-radius: 24px;
+    }
+    #zoomBar span { color: rgba(255,255,255,0.6); font-size: 12px; width: 34px; text-align: center; }
+    #zoomSlider {
+      -webkit-appearance: none; appearance: none;
+      width: 150px; height: 4px; border-radius: 2px;
+      background: rgba(255,255,255,0.25); outline: none; cursor: pointer;
+    }
+    #zoomSlider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 18px; height: 18px;
+      border-radius: 50%; background: #facc15; cursor: pointer;
+      box-shadow: 0 0 4px rgba(0,0,0,0.4);
+    }
+    #zoomSlider::-moz-range-thumb {
+      width: 18px; height: 18px; border: none;
+      border-radius: 50%; background: #facc15; cursor: pointer;
+    }
+
+    /* Zoom preset buttons */
+    #zoomPresets {
+      position: fixed; bottom: 136px; left: 50%; transform: translateX(-50%);
+      display: none; gap: 8px; z-index: 20;
+    }
+    .zp {
+      padding: 5px 13px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(0,0,0,0.4); backdrop-filter: blur(6px);
+      color: rgba(255,255,255,0.75); font-size: 13px; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .zp.active, .zp:hover { background: #facc15; color: #111; border-color: transparent; }
+
     .header {
       position: fixed; top: 0; left: 0; right: 0;
       padding: 14px 16px 0;
@@ -32,6 +80,18 @@
       text-shadow: 0 1px 4px rgba(0,0,0,0.6);
       z-index: 20; pointer-events: none;
     }
+
+    /* Quality badge */
+    #qualityBadge {
+      position: fixed; top: 14px; right: 16px;
+      background: rgba(0,0,0,0.45); backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px; padding: 4px 10px;
+      font-size: 11px; color: rgba(255,255,255,0.7);
+      z-index: 20; display: none; cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    #qualityBadge:hover { border-color: rgba(255,255,255,0.4); }
 
     .status {
       position: fixed; bottom: 60px; left: 0; right: 0; text-align: center;
@@ -66,6 +126,14 @@
       margin-right: 6px; vertical-align: middle;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Flash effect on capture */
+    #flash {
+      position: fixed; inset: 0; background: white;
+      opacity: 0; pointer-events: none; z-index: 30;
+      transition: opacity 0.05s;
+    }
+    #flash.on { opacity: 0.7; }
   </style>
 </head>
 <body>
@@ -83,7 +151,26 @@
     <img id="outputImg" alt="Result" />
   </div>
 
+  <div id="flash"></div>
+  <div id="focusRing"></div>
+
   <div class="header">Price Ranker</div>
+  <div id="qualityBadge" title="Tap to toggle quality">📷 HD</div>
+
+  <!-- Zoom presets -->
+  <div id="zoomPresets">
+    <button class="zp active" data-zoom="1">1×</button>
+    <button class="zp" data-zoom="2">2×</button>
+    <button class="zp" data-zoom="3">3×</button>
+  </div>
+
+  <!-- Zoom slider -->
+  <div id="zoomBar">
+    <span>🔍</span>
+    <input type="range" id="zoomSlider" min="1" max="1" step="0.1" value="1" />
+    <span id="zoomLabel">1×</span>
+  </div>
+
   <p class="status" id="status">Press "Start camera" to begin.</p>
 
   <div class="btn-row">
@@ -94,10 +181,15 @@
   </div>
 
 <script>
-  const BACKEND_URL = 'https://hobby-happens-invitations-games.trycloudflare.com/process';
+  const BACKEND_URL = 'test.com/process';
 
   let stream = null;
   let capturedDataUrl = null;
+  let currentTrack = null;
+  let minZoom = 1, maxZoom = 1, currentZoom = 1;
+  let focusTimer = null;
+  let highQuality = true; // toggle HD vs max
+  let nativeMaxW = 1920;
 
   const video       = document.getElementById('video');
   const canvas      = document.getElementById('canvas');
@@ -108,6 +200,13 @@
   const captureBtn  = document.getElementById('captureBtn');
   const retakeBtn   = document.getElementById('retakeBtn');
   const sendBtn     = document.getElementById('sendBtn');
+  const zoomBar     = document.getElementById('zoomBar');
+  const zoomSlider  = document.getElementById('zoomSlider');
+  const zoomLabel   = document.getElementById('zoomLabel');
+  const zoomPresets = document.getElementById('zoomPresets');
+  const focusRing   = document.getElementById('focusRing');
+  const qualityBadge = document.getElementById('qualityBadge');
+  const flash       = document.getElementById('flash');
 
   function setStatus(msg, isErr) {
     status.innerHTML = msg;
@@ -119,14 +218,24 @@
     if (el) el.style.display = 'block';
   }
 
+  // ── Quality badge toggle ──────────────────────────────────────────────────
+  qualityBadge.addEventListener('click', () => {
+    highQuality = !highQuality;
+    qualityBadge.textContent = highQuality ? '📷 HD' : '📷 MAX';
+    setStatus(highQuality
+      ? 'HD mode – balanced size & quality.'
+      : 'MAX mode – full native resolution.');
+  });
+
+  // ── Camera start ──────────────────────────────────────────────────────────
   async function startCamera() {
     startBtn.disabled = true;
-    setStatus('Starting camera...');
+    setStatus('Starting camera…');
     if (stream) stream.getTracks().forEach(t => t.stop());
 
     const constraints = [
-      { video: { facingMode: { exact: 'environment' }, width: { ideal: 1920 } } },
-      { video: { facingMode: 'environment', width: { ideal: 1280 } } },
+      { video: { facingMode: { exact: 'environment' }, width: { ideal: 4096 }, height: { ideal: 3072 } } },
+      { video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } },
       { video: true }
     ];
 
@@ -141,26 +250,216 @@
       return;
     }
 
+    currentTrack = stream.getVideoTracks()[0];
     video.srcObject = stream;
     showOnly(video);
+
+    // Wait for video metadata so we know real resolution
+    await new Promise(r => { video.onloadedmetadata = r; });
+    nativeMaxW = currentTrack.getSettings().width || video.videoWidth || 1920;
+
+    setupZoom();
+    setupTapFocus();
+
     captureBtn.disabled = false;
     retakeBtn.style.display = 'none';
     sendBtn.style.display = 'none';
     startBtn.style.display = 'none';
-    setStatus('Camera live. Press "Capture" when ready.');
+    qualityBadge.style.display = 'block';
+    setStatus('Tap to focus · pinch or slide to zoom · then Capture.');
   }
 
+  // ── Zoom ──────────────────────────────────────────────────────────────────
+  function setupZoom() {
+    const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
+    if (caps.zoom) {
+      minZoom = caps.zoom.min ?? 1;
+      maxZoom = caps.zoom.max ?? 5;
+      currentZoom = minZoom;
+      zoomSlider.min   = minZoom;
+      zoomSlider.max   = maxZoom;
+      zoomSlider.step  = (maxZoom - minZoom) / 100;
+      zoomSlider.value = minZoom;
+      zoomBar.style.display = 'flex';
+      zoomPresets.style.display = 'flex';
+      updateZoomPresets();
+    } else {
+      // Fallback: digital zoom via canvas transform (always available)
+      minZoom = 1; maxZoom = 5; currentZoom = 1;
+      zoomSlider.min = 1; zoomSlider.max = 5; zoomSlider.step = 0.1; zoomSlider.value = 1;
+      zoomBar.style.display = 'flex';
+      zoomPresets.style.display = 'flex';
+      updateZoomPresets();
+    }
+    zoomLabel.textContent = currentZoom.toFixed(1) + '×';
+  }
+
+  zoomSlider.addEventListener('input', () => {
+    currentZoom = parseFloat(zoomSlider.value);
+    zoomLabel.textContent = currentZoom.toFixed(1) + '×';
+    applyZoom(currentZoom);
+    updateZoomPresets();
+  });
+
+  document.querySelectorAll('.zp').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const z = Math.min(parseFloat(btn.dataset.zoom), maxZoom);
+      currentZoom = z;
+      zoomSlider.value = z;
+      zoomLabel.textContent = z.toFixed(1) + '×';
+      applyZoom(z);
+      updateZoomPresets();
+    });
+  });
+
+  function updateZoomPresets() {
+    document.querySelectorAll('.zp').forEach(btn => {
+      btn.classList.toggle('active', parseFloat(btn.dataset.zoom) === Math.round(currentZoom));
+    });
+  }
+
+  async function applyZoom(z) {
+    const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
+    if (caps.zoom) {
+      try { await currentTrack.applyConstraints({ advanced: [{ zoom: z }] }); } catch (e) {}
+    }
+    // Always also apply CSS transform for immediate visual feedback
+    video.style.transform = `scale(${z})`;
+    video.style.transformOrigin = 'center center';
+  }
+
+  // Pinch-to-zoom
+  let pinchStartDist = null, pinchStartZoom = 1;
+  video.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      pinchStartDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      pinchStartZoom = currentZoom;
+    }
+  }, { passive: true });
+
+  video.addEventListener('touchmove', e => {
+    if (e.touches.length === 2 && pinchStartDist !== null) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const ratio = dist / pinchStartDist;
+      const newZoom = Math.min(maxZoom, Math.max(minZoom, pinchStartZoom * ratio));
+      currentZoom = newZoom;
+      zoomSlider.value = newZoom;
+      zoomLabel.textContent = newZoom.toFixed(1) + '×';
+      applyZoom(newZoom);
+      updateZoomPresets();
+    }
+  }, { passive: true });
+
+  video.addEventListener('touchend', () => { pinchStartDist = null; });
+
+  // ── Tap-to-focus ──────────────────────────────────────────────────────────
+  function setupTapFocus() {
+    video.addEventListener('click', handleTapFocus);
+    video.addEventListener('touchend', e => {
+      if (e.changedTouches.length === 1 && pinchStartDist === null) {
+        const t = e.changedTouches[0];
+        handleTapFocus({ clientX: t.clientX, clientY: t.clientY });
+      }
+    });
+  }
+
+  async function handleTapFocus(e) {
+    const rect = video.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top)  / rect.height;
+
+    // Show focus ring
+    clearTimeout(focusTimer);
+    focusRing.style.left = e.clientX + 'px';
+    focusRing.style.top  = e.clientY + 'px';
+    focusRing.style.display = 'block';
+    focusRing.className = '';
+    void focusRing.offsetWidth; // reflow to restart animation
+
+    focusTimer = setTimeout(() => {
+      focusRing.className = 'fading';
+      setTimeout(() => { focusRing.style.display = 'none'; }, 400);
+    }, 1200);
+
+    // Apply focus & exposure via constraints if available
+    const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
+    const constraints = {};
+    if (caps.focusMode?.includes('manual') && caps.pointsOfInterest) {
+      constraints.focusMode = 'manual';
+      constraints.pointsOfInterest = [{ x, y }];
+    } else if (caps.focusMode?.includes('single-shot')) {
+      constraints.focusMode = 'single-shot';
+    }
+    if (caps.exposureMode?.includes('manual') && caps.pointsOfInterest) {
+      constraints.exposureMode = 'manual';
+      constraints.pointsOfInterest = [{ x, y }];
+    }
+    if (Object.keys(constraints).length) {
+      try { await currentTrack.applyConstraints({ advanced: [constraints] }); } catch (e) {}
+    }
+  }
+
+  // ── Capture (high quality) ────────────────────────────────────────────────
   function capturePhoto() {
-    canvas.width  = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    capturedDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    // Flash effect
+    flash.classList.add('on');
+    setTimeout(() => flash.classList.remove('on'), 120);
+
+    const settings = currentTrack ? currentTrack.getSettings() : {};
+    const nativeW = settings.width  || video.videoWidth;
+    const nativeH = settings.height || video.videoHeight;
+
+    // Choose output resolution
+    let outW, outH;
+    if (highQuality) {
+      // HD: up to 1920 wide, keep aspect
+      const scale = Math.min(1, 1920 / nativeW);
+      outW = Math.round(nativeW * scale);
+      outH = Math.round(nativeH * scale);
+    } else {
+      // MAX: full native
+      outW = nativeW;
+      outH = nativeH;
+    }
+
+    canvas.width  = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext('2d');
+
+    // Apply digital zoom crop if zoom > 1
+    const caps = currentTrack ? (currentTrack.getCapabilities ? currentTrack.getCapabilities() : {}) : {};
+    const hasNativeZoom = !!(caps.zoom);
+    const digZoom = hasNativeZoom ? 1 : currentZoom; // only do digital crop if no native zoom
+
+    if (digZoom > 1) {
+      const cropW = video.videoWidth  / digZoom;
+      const cropH = video.videoHeight / digZoom;
+      const cropX = (video.videoWidth  - cropW) / 2;
+      const cropY = (video.videoHeight - cropH) / 2;
+      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
+    } else {
+      ctx.drawImage(video, 0, 0, outW, outH);
+    }
+
+    const quality = highQuality ? 0.92 : 0.97;
+    capturedDataUrl = canvas.toDataURL('image/jpeg', quality);
 
     showOnly(canvas);
     captureBtn.disabled = true;
     retakeBtn.style.display = 'flex';
     sendBtn.style.display = 'flex';
-    setStatus('Photo captured. Press "Send" to process.');
+    zoomBar.style.display = 'none';
+    zoomPresets.style.display = 'none';
+    qualityBadge.style.display = 'none';
+
+    const kb = Math.round(capturedDataUrl.length * 0.75 / 1024);
+    setStatus(`Captured ${outW}×${outH} · ~${kb < 1024 ? kb + ' KB' : (kb/1024).toFixed(1) + ' MB'}. Press "Send" to process.`);
   }
 
   function retake() {
@@ -169,14 +468,18 @@
     captureBtn.disabled = false;
     retakeBtn.style.display = 'none';
     sendBtn.style.display = 'none';
-    setStatus('Camera live. Press "Capture" when ready.');
+    zoomBar.style.display = 'flex';
+    zoomPresets.style.display = 'flex';
+    qualityBadge.style.display = 'block';
+    setStatus('Tap to focus · pinch or slide to zoom · then Capture.');
   }
 
+  // ── Send ──────────────────────────────────────────────────────────────────
   async function sendToBackend() {
     if (!capturedDataUrl) return;
     sendBtn.disabled = true;
     retakeBtn.disabled = true;
-    setStatus('<span class="spinner"></span>Processing, please wait...');
+    setStatus('<span class="spinner"></span>Processing, please wait…');
 
     try {
       const res = await fetch(BACKEND_URL, {
@@ -184,7 +487,6 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: capturedDataUrl })
       });
-
       if (!res.ok) throw new Error('Server returned ' + res.status);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
