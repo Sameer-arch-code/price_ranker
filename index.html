@@ -21,12 +21,11 @@
     }
     .placeholder svg { width: 48px; height: 48px; stroke: #444; }
 
-    /* Focus ring */
     #focusRing {
       position: fixed; width: 64px; height: 64px;
       border: 2px solid #facc15; border-radius: 4px;
-      pointer-events: none; display: none; z-index: 25;
-      transform: translate(-50%, -50%);
+      pointer-events: none; z-index: 30;
+      display: none; transform: translate(-50%, -50%);
       box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
       animation: focusPulse 0.35s ease-out forwards;
     }
@@ -34,44 +33,6 @@
       0%   { opacity: 1; width: 80px; height: 80px; }
       100% { opacity: 1; width: 64px; height: 64px; }
     }
-    #focusRing.fading { animation: focusFade 0.4s ease-out forwards; }
-    @keyframes focusFade { to { opacity: 0; } }
-
-    /* Zoom bar */
-    #zoomBar {
-      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
-      display: none; align-items: center; gap: 10px; z-index: 20;
-      background: rgba(0,0,0,0.45); backdrop-filter: blur(8px);
-      padding: 8px 14px; border-radius: 24px;
-    }
-    #zoomBar span { color: rgba(255,255,255,0.6); font-size: 12px; width: 34px; text-align: center; }
-    #zoomSlider {
-      -webkit-appearance: none; appearance: none;
-      width: 150px; height: 4px; border-radius: 2px;
-      background: rgba(255,255,255,0.25); outline: none; cursor: pointer;
-    }
-    #zoomSlider::-webkit-slider-thumb {
-      -webkit-appearance: none; width: 18px; height: 18px;
-      border-radius: 50%; background: #facc15; cursor: pointer;
-      box-shadow: 0 0 4px rgba(0,0,0,0.4);
-    }
-    #zoomSlider::-moz-range-thumb {
-      width: 18px; height: 18px; border: none;
-      border-radius: 50%; background: #facc15; cursor: pointer;
-    }
-
-    /* Zoom preset buttons */
-    #zoomPresets {
-      position: fixed; bottom: 136px; left: 50%; transform: translateX(-50%);
-      display: none; gap: 8px; z-index: 20;
-    }
-    .zp {
-      padding: 5px 13px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.25);
-      background: rgba(0,0,0,0.4); backdrop-filter: blur(6px);
-      color: rgba(255,255,255,0.75); font-size: 13px; cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-    }
-    .zp.active, .zp:hover { background: #facc15; color: #111; border-color: transparent; }
 
     .header {
       position: fixed; top: 0; left: 0; right: 0;
@@ -81,20 +42,46 @@
       z-index: 20; pointer-events: none;
     }
 
-    /* Quality badge */
-    #qualityBadge {
-      position: fixed; top: 14px; right: 16px;
-      background: rgba(0,0,0,0.45); backdrop-filter: blur(6px);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 12px; padding: 4px 10px;
-      font-size: 11px; color: rgba(255,255,255,0.7);
-      z-index: 20; display: none; cursor: pointer;
-      transition: border-color 0.15s;
+    #zoomBar {
+      position: fixed; right: 16px; top: 50%; transform: translateY(-50%);
+      display: none; flex-direction: column; align-items: center; gap: 8px; z-index: 20;
     }
-    #qualityBadge:hover { border-color: rgba(255,255,255,0.4); }
+    #zoomSlider {
+      -webkit-appearance: none; appearance: none;
+      writing-mode: vertical-lr; direction: rtl;
+      width: 4px; height: 160px; border-radius: 2px;
+      background: rgba(255,255,255,0.25); outline: none; cursor: pointer;
+    }
+    #zoomSlider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 20px; height: 20px;
+      border-radius: 50%; background: #fff; cursor: pointer;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.5);
+    }
+    #zoomLabel {
+      color: rgba(255,255,255,0.85); font-size: 12px;
+      text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+      letter-spacing: 0.02em;
+    }
+
+    #qualityRow {
+      position: fixed; top: 44px; right: 14px;
+      display: none; align-items: center; gap: 6px; z-index: 20;
+    }
+    #qualityRow label { color: rgba(255,255,255,0.75); font-size: 12px; }
+    #qualityToggle {
+      display: flex; border-radius: 12px; overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    #qualityToggle button {
+      padding: 4px 10px; font-size: 11px; border-radius: 0; border: none;
+      background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);
+    }
+    #qualityToggle button.active {
+      background: rgba(255,255,255,0.85); color: #111;
+    }
 
     .status {
-      position: fixed; bottom: 60px; left: 0; right: 0; text-align: center;
+      position: fixed; bottom: 88px; left: 0; right: 0; text-align: center;
       font-size: 13px; color: rgba(255,255,255,0.85);
       text-shadow: 0 1px 3px rgba(0,0,0,0.7);
       z-index: 20; pointer-events: none;
@@ -127,13 +114,12 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Flash effect on capture */
-    #flash {
-      position: fixed; inset: 0; background: white;
-      opacity: 0; pointer-events: none; z-index: 30;
-      transition: opacity 0.05s;
+    #tapHint {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      color: rgba(255,255,255,0.4); font-size: 12px; pointer-events: none;
+      z-index: 15; display: none; text-align: center;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.6);
     }
-    #flash.on { opacity: 0.7; }
   </style>
 </head>
 <body>
@@ -151,24 +137,22 @@
     <img id="outputImg" alt="Result" />
   </div>
 
-  <div id="flash"></div>
   <div id="focusRing"></div>
+  <div id="tapHint">Tap to focus</div>
 
   <div class="header">Price Ranker</div>
-  <div id="qualityBadge" title="Tap to toggle quality">📷 HD</div>
 
-  <!-- Zoom presets -->
-  <div id="zoomPresets">
-    <button class="zp active" data-zoom="1">1×</button>
-    <button class="zp" data-zoom="2">2×</button>
-    <button class="zp" data-zoom="3">3×</button>
+  <div id="qualityRow">
+    <label>Quality</label>
+    <div id="qualityToggle">
+      <button id="qHD" onclick="setQuality('hd')">HD</button>
+      <button id="qMax" class="active" onclick="setQuality('max')">MAX</button>
+    </div>
   </div>
 
-  <!-- Zoom slider -->
   <div id="zoomBar">
-    <span>🔍</span>
-    <input type="range" id="zoomSlider" min="1" max="1" step="0.1" value="1" />
     <span id="zoomLabel">1×</span>
+    <input type="range" id="zoomSlider" min="1" max="5" step="0.05" value="1" oninput="applyZoom(parseFloat(this.value))">
   </div>
 
   <p class="status" id="status">Press "Start camera" to begin.</p>
@@ -185,28 +169,28 @@
 
   let stream = null;
   let capturedDataUrl = null;
-  let currentTrack = null;
-  let minZoom = 1, maxZoom = 1, currentZoom = 1;
-  let focusTimer = null;
-  let highQuality = true; // toggle HD vs max
-  let nativeMaxW = 1920;
+  let currentZoom = 1;
+  let minZoom = 1, maxZoom = 5;
+  let supportsZoom = false;
+  let quality = 'max';
+  let focusTimeout = null;
+  let hintTimeout = null;
 
-  const video       = document.getElementById('video');
-  const canvas      = document.getElementById('canvas');
-  const placeholder = document.getElementById('placeholder');
-  const outputImg   = document.getElementById('outputImg');
-  const status      = document.getElementById('status');
-  const startBtn    = document.getElementById('startBtn');
-  const captureBtn  = document.getElementById('captureBtn');
-  const retakeBtn   = document.getElementById('retakeBtn');
-  const sendBtn     = document.getElementById('sendBtn');
-  const zoomBar     = document.getElementById('zoomBar');
-  const zoomSlider  = document.getElementById('zoomSlider');
-  const zoomLabel   = document.getElementById('zoomLabel');
-  const zoomPresets = document.getElementById('zoomPresets');
-  const focusRing   = document.getElementById('focusRing');
-  const qualityBadge = document.getElementById('qualityBadge');
-  const flash       = document.getElementById('flash');
+  const video      = document.getElementById('video');
+  const canvas     = document.getElementById('canvas');
+  const placeholder= document.getElementById('placeholder');
+  const outputImg  = document.getElementById('outputImg');
+  const status     = document.getElementById('status');
+  const startBtn   = document.getElementById('startBtn');
+  const captureBtn = document.getElementById('captureBtn');
+  const retakeBtn  = document.getElementById('retakeBtn');
+  const sendBtn    = document.getElementById('sendBtn');
+  const zoomBar    = document.getElementById('zoomBar');
+  const zoomSlider = document.getElementById('zoomSlider');
+  const zoomLabel  = document.getElementById('zoomLabel');
+  const focusRing  = document.getElementById('focusRing');
+  const qualityRow = document.getElementById('qualityRow');
+  const tapHint    = document.getElementById('tapHint');
 
   function setStatus(msg, isErr) {
     status.innerHTML = msg;
@@ -218,16 +202,67 @@
     if (el) el.style.display = 'block';
   }
 
-  // ── Quality badge toggle ──────────────────────────────────────────────────
-  qualityBadge.addEventListener('click', () => {
-    highQuality = !highQuality;
-    qualityBadge.textContent = highQuality ? '📷 HD' : '📷 MAX';
-    setStatus(highQuality
-      ? 'HD mode – balanced size & quality.'
-      : 'MAX mode – full native resolution.');
-  });
+  // ── Quality ────────────────────────────────────────────────
+  function setQuality(q) {
+    quality = q;
+    document.getElementById('qHD').classList.toggle('active', q === 'hd');
+    document.getElementById('qMax').classList.toggle('active', q === 'max');
+  }
 
-  // ── Camera start ──────────────────────────────────────────────────────────
+  // ── Zoom ───────────────────────────────────────────────────
+  function applyZoom(val) {
+    currentZoom = Math.max(minZoom, Math.min(maxZoom, val));
+    zoomSlider.value = currentZoom;
+    zoomLabel.textContent = currentZoom.toFixed(1).replace(/\.0$/, '') + '×';
+    if (!stream) return;
+    const [track] = stream.getVideoTracks();
+    if (supportsZoom) {
+      track.applyConstraints({ advanced: [{ zoom: currentZoom }] }).catch(() => {});
+    }
+  }
+
+  function adjustZoom(delta) { applyZoom(currentZoom + delta); }
+
+  // ── Tap-to-focus ───────────────────────────────────────────
+  function showFocusRing(x, y) {
+    focusRing.style.left = x + 'px';
+    focusRing.style.top  = y + 'px';
+    focusRing.style.display = 'block';
+    focusRing.style.animation = 'none';
+    void focusRing.offsetWidth;
+    focusRing.style.animation = '';
+    clearTimeout(focusTimeout);
+    focusTimeout = setTimeout(() => { focusRing.style.display = 'none'; }, 1800);
+  }
+
+  async function tapFocus(e) {
+    if (sendBtn.style.display !== 'none') return; // after capture, do nothing
+    const rect = video.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    showFocusRing(clientX, clientY);
+    tapHint.style.display = 'none';
+
+    if (!stream) return;
+    const [track] = stream.getVideoTracks();
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    if (caps.pointsOfInterest || caps.focusMode) {
+      const x = (clientX - rect.left) / rect.width;
+      const y = (clientY - rect.top)  / rect.height;
+      const adv = {};
+      if (caps.pointsOfInterest) adv.pointsOfInterest = [{ x, y }];
+      if (caps.focusMode) {
+        if (caps.focusMode.includes('single-shot')) adv.focusMode = 'single-shot';
+        else if (caps.focusMode.includes('manual')) adv.focusMode = 'manual';
+      }
+      try { await track.applyConstraints({ advanced: [adv] }); } catch (_) {}
+    }
+  }
+
+  video.addEventListener('click',      tapFocus);
+  video.addEventListener('touchstart', tapFocus, { passive: true });
+
+  // ── Camera start ───────────────────────────────────────────
   async function startCamera() {
     startBtn.disabled = true;
     setStatus('Starting camera…');
@@ -250,216 +285,70 @@
       return;
     }
 
-    currentTrack = stream.getVideoTracks()[0];
     video.srcObject = stream;
     showOnly(video);
-
-    // Wait for video metadata so we know real resolution
-    await new Promise(r => { video.onloadedmetadata = r; });
-    nativeMaxW = currentTrack.getSettings().width || video.videoWidth || 1920;
-
-    setupZoom();
-    setupTapFocus();
-
     captureBtn.disabled = false;
     retakeBtn.style.display = 'none';
     sendBtn.style.display = 'none';
     startBtn.style.display = 'none';
-    qualityBadge.style.display = 'block';
-    setStatus('Tap to focus · pinch or slide to zoom · then Capture.');
-  }
 
-  // ── Zoom ──────────────────────────────────────────────────────────────────
-  function setupZoom() {
-    const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
+    // Probe zoom support
+    const [track] = stream.getVideoTracks();
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
     if (caps.zoom) {
+      supportsZoom = true;
       minZoom = caps.zoom.min ?? 1;
       maxZoom = caps.zoom.max ?? 5;
-      currentZoom = minZoom;
       zoomSlider.min   = minZoom;
       zoomSlider.max   = maxZoom;
-      zoomSlider.step  = (maxZoom - minZoom) / 100;
+      zoomSlider.step  = 0.05;
       zoomSlider.value = minZoom;
+      currentZoom = minZoom;
+      zoomLabel.textContent = minZoom + '×';
       zoomBar.style.display = 'flex';
-      zoomPresets.style.display = 'flex';
-      updateZoomPresets();
     } else {
-      // Fallback: digital zoom via canvas transform (always available)
-      minZoom = 1; maxZoom = 5; currentZoom = 1;
-      zoomSlider.min = 1; zoomSlider.max = 5; zoomSlider.step = 0.1; zoomSlider.value = 1;
-      zoomBar.style.display = 'flex';
-      zoomPresets.style.display = 'flex';
-      updateZoomPresets();
+      zoomBar.style.display = 'none';
     }
-    zoomLabel.textContent = currentZoom.toFixed(1) + '×';
+
+    qualityRow.style.display = 'flex';
+
+    tapHint.style.display = 'block';
+    clearTimeout(hintTimeout);
+    hintTimeout = setTimeout(() => { tapHint.style.display = 'none'; }, 2800);
+
+    setStatus('Tap to focus · Capture when ready.');
   }
 
-  zoomSlider.addEventListener('input', () => {
-    currentZoom = parseFloat(zoomSlider.value);
-    zoomLabel.textContent = currentZoom.toFixed(1) + '×';
-    applyZoom(currentZoom);
-    updateZoomPresets();
-  });
-
-  document.querySelectorAll('.zp').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const z = Math.min(parseFloat(btn.dataset.zoom), maxZoom);
-      currentZoom = z;
-      zoomSlider.value = z;
-      zoomLabel.textContent = z.toFixed(1) + '×';
-      applyZoom(z);
-      updateZoomPresets();
-    });
-  });
-
-  function updateZoomPresets() {
-    document.querySelectorAll('.zp').forEach(btn => {
-      btn.classList.toggle('active', parseFloat(btn.dataset.zoom) === Math.round(currentZoom));
-    });
-  }
-
-  async function applyZoom(z) {
-    const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
-    if (caps.zoom) {
-      try { await currentTrack.applyConstraints({ advanced: [{ zoom: z }] }); } catch (e) {}
-    }
-    // Always also apply CSS transform for immediate visual feedback
-    video.style.transform = `scale(${z})`;
-    video.style.transformOrigin = 'center center';
-  }
-
-  // Pinch-to-zoom
-  let pinchStartDist = null, pinchStartZoom = 1;
-  video.addEventListener('touchstart', e => {
-    if (e.touches.length === 2) {
-      pinchStartDist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      pinchStartZoom = currentZoom;
-    }
-  }, { passive: true });
-
-  video.addEventListener('touchmove', e => {
-    if (e.touches.length === 2 && pinchStartDist !== null) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      const ratio = dist / pinchStartDist;
-      const newZoom = Math.min(maxZoom, Math.max(minZoom, pinchStartZoom * ratio));
-      currentZoom = newZoom;
-      zoomSlider.value = newZoom;
-      zoomLabel.textContent = newZoom.toFixed(1) + '×';
-      applyZoom(newZoom);
-      updateZoomPresets();
-    }
-  }, { passive: true });
-
-  video.addEventListener('touchend', () => { pinchStartDist = null; });
-
-  // ── Tap-to-focus ──────────────────────────────────────────────────────────
-  function setupTapFocus() {
-    video.addEventListener('click', handleTapFocus);
-    video.addEventListener('touchend', e => {
-      if (e.changedTouches.length === 1 && pinchStartDist === null) {
-        const t = e.changedTouches[0];
-        handleTapFocus({ clientX: t.clientX, clientY: t.clientY });
-      }
-    });
-  }
-
-  async function handleTapFocus(e) {
-    const rect = video.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top)  / rect.height;
-
-    // Show focus ring
-    clearTimeout(focusTimer);
-    focusRing.style.left = e.clientX + 'px';
-    focusRing.style.top  = e.clientY + 'px';
-    focusRing.style.display = 'block';
-    focusRing.className = '';
-    void focusRing.offsetWidth; // reflow to restart animation
-
-    focusTimer = setTimeout(() => {
-      focusRing.className = 'fading';
-      setTimeout(() => { focusRing.style.display = 'none'; }, 400);
-    }, 1200);
-
-    // Apply focus & exposure via constraints if available
-    const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
-    const constraints = {};
-    if (caps.focusMode?.includes('manual') && caps.pointsOfInterest) {
-      constraints.focusMode = 'manual';
-      constraints.pointsOfInterest = [{ x, y }];
-    } else if (caps.focusMode?.includes('single-shot')) {
-      constraints.focusMode = 'single-shot';
-    }
-    if (caps.exposureMode?.includes('manual') && caps.pointsOfInterest) {
-      constraints.exposureMode = 'manual';
-      constraints.pointsOfInterest = [{ x, y }];
-    }
-    if (Object.keys(constraints).length) {
-      try { await currentTrack.applyConstraints({ advanced: [constraints] }); } catch (e) {}
-    }
-  }
-
-  // ── Capture (high quality) ────────────────────────────────────────────────
+  // ── Capture ────────────────────────────────────────────────
   function capturePhoto() {
-    // Flash effect
-    flash.classList.add('on');
-    setTimeout(() => flash.classList.remove('on'), 120);
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
 
-    const settings = currentTrack ? currentTrack.getSettings() : {};
-    const nativeW = settings.width  || video.videoWidth;
-    const nativeH = settings.height || video.videoHeight;
-
-    // Choose output resolution
-    let outW, outH;
-    if (highQuality) {
-      // HD: up to 1920 wide, keep aspect
-      const scale = Math.min(1, 1920 / nativeW);
-      outW = Math.round(nativeW * scale);
-      outH = Math.round(nativeH * scale);
-    } else {
-      // MAX: full native
-      outW = nativeW;
-      outH = nativeH;
+    let w = vw, h = vh;
+    if (quality === 'hd') {
+      const scale = Math.min(1, 1920 / vw);
+      w = Math.round(vw * scale);
+      h = Math.round(vh * scale);
     }
 
-    canvas.width  = outW;
-    canvas.height = outH;
-    const ctx = canvas.getContext('2d');
+    canvas.width  = w;
+    canvas.height = h;
+    canvas.getContext('2d').drawImage(video, 0, 0, w, h);
 
-    // Apply digital zoom crop if zoom > 1
-    const caps = currentTrack ? (currentTrack.getCapabilities ? currentTrack.getCapabilities() : {}) : {};
-    const hasNativeZoom = !!(caps.zoom);
-    const digZoom = hasNativeZoom ? 1 : currentZoom; // only do digital crop if no native zoom
-
-    if (digZoom > 1) {
-      const cropW = video.videoWidth  / digZoom;
-      const cropH = video.videoHeight / digZoom;
-      const cropX = (video.videoWidth  - cropW) / 2;
-      const cropY = (video.videoHeight - cropH) / 2;
-      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
-    } else {
-      ctx.drawImage(video, 0, 0, outW, outH);
-    }
-
-    const quality = highQuality ? 0.92 : 0.97;
-    capturedDataUrl = canvas.toDataURL('image/jpeg', quality);
+    const jpegQ = quality === 'max' ? 0.98 : 0.88;
+    capturedDataUrl = canvas.toDataURL('image/jpeg', jpegQ);
 
     showOnly(canvas);
     captureBtn.disabled = true;
     retakeBtn.style.display = 'flex';
     sendBtn.style.display = 'flex';
     zoomBar.style.display = 'none';
-    zoomPresets.style.display = 'none';
-    qualityBadge.style.display = 'none';
+    qualityRow.style.display = 'none';
+    tapHint.style.display = 'none';
+    clearTimeout(hintTimeout);
 
-    const kb = Math.round(capturedDataUrl.length * 0.75 / 1024);
-    setStatus(`Captured ${outW}×${outH} · ~${kb < 1024 ? kb + ' KB' : (kb/1024).toFixed(1) + ' MB'}. Press "Send" to process.`);
+    const mp = ((w * h) / 1e6).toFixed(1);
+    setStatus(`Captured ${w}×${h} (${mp} MP) · Press "Send" to process.`);
   }
 
   function retake() {
@@ -468,13 +357,15 @@
     captureBtn.disabled = false;
     retakeBtn.style.display = 'none';
     sendBtn.style.display = 'none';
-    zoomBar.style.display = 'flex';
-    zoomPresets.style.display = 'flex';
-    qualityBadge.style.display = 'block';
-    setStatus('Tap to focus · pinch or slide to zoom · then Capture.');
+    if (supportsZoom) zoomBar.style.display = 'flex';
+    qualityRow.style.display = 'flex';
+    tapHint.style.display = 'block';
+    clearTimeout(hintTimeout);
+    hintTimeout = setTimeout(() => { tapHint.style.display = 'none'; }, 2800);
+    setStatus('Tap to focus · Capture when ready.');
   }
 
-  // ── Send ──────────────────────────────────────────────────────────────────
+  // ── Send ───────────────────────────────────────────────────
   async function sendToBackend() {
     if (!capturedDataUrl) return;
     sendBtn.disabled = true;
@@ -487,6 +378,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: capturedDataUrl })
       });
+
       if (!res.ok) throw new Error('Server returned ' + res.status);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
