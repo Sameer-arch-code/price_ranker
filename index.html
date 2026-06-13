@@ -49,6 +49,8 @@
     button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
     button.primary { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
     button.primary:hover { background: #bfdbfe; }
+    button.green { background: #dcfce7; border-color: #86efac; color: #166534; }
+    button.green:hover { background: #bbf7d0; }
 
     .status { font-size: 13px; color: #666; margin-top: 10px; min-height: 18px; }
     .status.err { color: #dc2626; }
@@ -56,20 +58,26 @@
     #result-box { margin-top: 16px; display: none; }
     #result-box img { width: 100%; border-radius: 12px; border: 1px solid #ddd; }
     .result-label { font-size: 12px; color: #888; margin-bottom: 6px; }
-    .tag {
-      display: inline-flex; align-items: center; gap: 4px;
-      font-size: 12px; padding: 3px 10px; border-radius: 8px;
-      background: #dcfce7; color: #166534; margin-top: 8px;
+
+    #output-box { margin-top: 16px; display: none; }
+    #output-box img { width: 100%; border-radius: 12px; border: 1px solid #ddd; }
+    .output-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+
+    .spinner {
+      display: inline-block; width: 12px; height: 12px;
+      border: 2px solid #93c5fd; border-top-color: #1d4ed8;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+      margin-right: 6px; vertical-align: middle;
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 <div class="wrap">
-  <h2>📸 Camera Capture</h2>
+  <h2>📸 Camera → Backend</h2>
 
   <div class="video-box" id="videoBox">
     <div class="placeholder" id="placeholder">
-      <!-- camera icon -->
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
         <circle cx="12" cy="13" r="4"/>
@@ -89,35 +97,52 @@
 
   <p class="status" id="status">Press "Start camera" to begin.</p>
 
+  <!-- Captured photo -->
   <div id="result-box">
     <p class="result-label">📷 Captured photo</p>
     <img id="resultImg" alt="Captured photo" />
-    <div><span class="tag">✓ Ready to send to backend</span></div>
     <div class="btn-row" style="margin-top:10px">
       <button onclick="downloadPhoto()">⬇ Download</button>
-      <button onclick="copyBase64()">⎘ Copy base64</button>
+      <button class="green" onclick="sendToBackend()" id="sendBtn">↑ Send to backend</button>
     </div>
   </div>
+
+  <!-- Result from backend -->
+  <div id="output-box">
+    <p class="output-label">🖥️ Result from backend</p>
+    <img id="outputImg" alt="Processed result" />
+    <div class="btn-row" style="margin-top:10px">
+      <button onclick="downloadResult()">⬇ Download result</button>
+    </div>
+  </div>
+
 </div>
 
 <script>
+  // ✏️ Paste your Cloudflare URL here every time you restart the notebook
+  const BACKEND_URL = 'https://mathematics-lifestyle-entire-attacks.trycloudflare.com/process';
+
   let stream = null;
   let facingMode = 'environment';
   let capturedDataUrl = null;
+  let resultDataUrl = null;
 
-  const video     = document.getElementById('video');
-  const canvas    = document.getElementById('canvas');
+  const video      = document.getElementById('video');
+  const canvas     = document.getElementById('canvas');
   const placeholder = document.getElementById('placeholder');
-  const status    = document.getElementById('status');
-  const startBtn  = document.getElementById('startBtn');
+  const status     = document.getElementById('status');
+  const startBtn   = document.getElementById('startBtn');
   const captureBtn = document.getElementById('captureBtn');
-  const retakeBtn = document.getElementById('retakeBtn');
-  const flipBtn   = document.getElementById('flipBtn');
-  const resultBox = document.getElementById('result-box');
-  const resultImg = document.getElementById('resultImg');
+  const retakeBtn  = document.getElementById('retakeBtn');
+  const flipBtn    = document.getElementById('flipBtn');
+  const resultBox  = document.getElementById('result-box');
+  const resultImg  = document.getElementById('resultImg');
+  const outputBox  = document.getElementById('output-box');
+  const outputImg  = document.getElementById('outputImg');
+  const sendBtn    = document.getElementById('sendBtn');
 
   function setStatus(msg, isErr) {
-    status.textContent = msg;
+    status.innerHTML = msg;
     status.className = 'status' + (isErr ? ' err' : '');
   }
 
@@ -136,6 +161,7 @@
       captureBtn.disabled = false;
       retakeBtn.style.display = 'none';
       resultBox.style.display = 'none';
+      outputBox.style.display = 'none';
       setStatus('Camera live. Press "Capture" when ready.');
     } catch (e) {
       setStatus('Could not access camera: ' + e.message, true);
@@ -161,12 +187,15 @@
 
     resultImg.src = capturedDataUrl;
     resultBox.style.display = 'block';
+    outputBox.style.display = 'none';
     setStatus('Photo captured — ' + canvas.width + ' × ' + canvas.height + 'px');
   }
 
   function retake() {
     capturedDataUrl = null;
+    resultDataUrl = null;
     resultBox.style.display = 'none';
+    outputBox.style.display = 'none';
     retakeBtn.style.display = 'none';
     captureBtn.disabled = false;
     flipBtn.style.display = 'flex';
@@ -175,19 +204,49 @@
     setStatus('Camera live. Press "Capture" when ready.');
   }
 
+  async function sendToBackend() {
+    if (!capturedDataUrl) return;
+    sendBtn.disabled = true;
+    setStatus('<span class="spinner"></span>Sending to backend, please wait...');
+    outputBox.style.display = 'none';
+
+    try {
+      const res = await fetch(BACKEND_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: capturedDataUrl })
+      });
+
+      if (!res.ok) throw new Error('Server returned ' + res.status);
+
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+
+      resultDataUrl = json.image;
+      outputImg.src = resultDataUrl;
+      outputBox.style.display = 'block';
+      setStatus('✅ Done! Result shown below.');
+    } catch (e) {
+      setStatus('❌ Error: ' + e.message, true);
+    }
+
+    sendBtn.disabled = false;
+  }
+
   function downloadPhoto() {
     if (!capturedDataUrl) return;
     const a = document.createElement('a');
     a.href = capturedDataUrl;
-    a.download = 'photo_' + Date.now() + '.jpg';
+    a.download = 'captured_' + Date.now() + '.jpg';
     a.click();
   }
 
-  function copyBase64() {
-    if (!capturedDataUrl) return;
-    navigator.clipboard.writeText(capturedDataUrl)
-      .then(() => setStatus('Base64 copied to clipboard!'))
-      .catch(() => setStatus('Copy failed — try downloading instead.', true));
+  function downloadResult() {
+    if (!resultDataUrl) return;
+    const a = document.createElement('a');
+    a.href = resultDataUrl;
+    a.download = 'result_' + Date.now() + '.jpg';
+    a.click();
   }
 </script>
 </body>
