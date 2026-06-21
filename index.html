@@ -97,12 +97,26 @@
     body.dragover #localPreview { outline: 2px dashed rgba(250,204,21,0.7); }
 
     .status {
-      position: fixed; bottom: 88px; left: 0; right: 0; text-align: center;
+      position: fixed; bottom: 138px; left: 0; right: 0; text-align: center;
       font-size: 13px; color: rgba(255,255,255,0.85);
       text-shadow: 0 1px 3px rgba(0,0,0,0.7);
       z-index: 20; pointer-events: none;
     }
     .status.err { color: #f87171; }
+
+    #itemRow {
+      position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+      display: none; gap: 8px; z-index: 20;
+      width: min(420px, calc(100% - 32px));
+    }
+    #itemInput {
+      flex: 1; padding: 10px 14px; border-radius: 20px; border: none;
+      background: rgba(255,255,255,0.12); color: #fff; font-size: 14px;
+      outline: none; backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,0.25);
+    }
+    #itemInput::placeholder { color: rgba(255,255,255,0.5); }
+    #itemInput:focus { border-color: rgba(250,204,21,0.7); }
 
     .btn-row {
       position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
@@ -182,6 +196,10 @@
 
   <p class="status" id="status">Press "Start camera" or upload an image.</p>
 
+  <div id="itemRow">
+    <input type="text" id="itemInput" placeholder="Item name (optional)" onkeydown="if(event.key==='Enter'){event.preventDefault();sendToBackend();}">
+  </div>
+
   <div class="btn-row" id="btnRow">
     <button class="primary" id="startBtn" onclick="startCamera()">Start camera</button>
     <button class="amber"   id="uploadBtn" onclick="document.getElementById('fileInput').click()">Upload image</button>
@@ -221,6 +239,8 @@
   const focusRing    = document.getElementById('focusRing');
   const qualityRow   = document.getElementById('qualityRow');
   const tapHint      = document.getElementById('tapHint');
+  const itemRow      = document.getElementById('itemRow');
+  const itemInput    = document.getElementById('itemInput');
 
   function setStatus(msg, isErr) {
     status.innerHTML = msg;
@@ -326,6 +346,7 @@
       zoomBar.style.display    = 'none';
       qualityRow.style.display = 'none';
       tapHint.style.display    = 'none';
+      itemRow.style.display    = 'flex';
 
       const kb = (file.size / 1024).toFixed(0);
       setStatus(`"${file.name}" loaded (${kb} KB) · Press "Send" to process.`);
@@ -368,6 +389,7 @@
     captureBtn.disabled = false;
     retakeBtn.style.display = 'none';
     sendBtn.style.display   = 'none';
+    itemRow.style.display   = 'none';
 
     // Probe zoom
     const [track] = stream.getVideoTracks();
@@ -411,6 +433,7 @@
     zoomBar.style.display   = 'none';
     qualityRow.style.display = 'none';
     tapHint.style.display   = 'none';
+    itemRow.style.display   = 'flex';
     clearTimeout(hintTimeout);
     const mp = ((w * h) / 1e6).toFixed(1);
     setStatus(`Captured ${w}×${h} (${mp} MP) · Press "Send" to process.`);
@@ -434,6 +457,8 @@
       sendBtn.style.display    = 'none';
       zoomBar.style.display    = 'none';
       qualityRow.style.display = 'none';
+      itemRow.style.display    = 'none';
+      itemInput.value = '';
       setStatus('Press "Start camera" or upload an image.');
       return;
     }
@@ -443,6 +468,8 @@
     captureBtn.disabled = false;
     retakeBtn.style.display = 'none';
     sendBtn.style.display   = 'none';
+    itemRow.style.display   = 'none';
+    itemInput.value = '';
     if (supportsZoom) zoomBar.style.display = 'flex';
     qualityRow.style.display = 'flex';
     tapHint.style.display = 'block';
@@ -458,11 +485,13 @@
     retakeBtn.disabled = true;
     setStatus('<span class="spinner"></span>Processing, please wait…');
 
+    const itemName = itemInput.value.trim();
+
     try {
       const res = await fetch(BACKEND_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: capturedDataUrl })
+        body: JSON.stringify({ image: capturedDataUrl, item: itemName })
       });
       if (!res.ok) throw new Error('Server returned ' + res.status);
       const json = await res.json();
@@ -472,6 +501,7 @@
       showOnly(outputImg);
       retakeBtn.style.display = 'flex';
       sendBtn.style.display   = 'none';
+      itemRow.style.display   = 'none';
       setStatus('Done.');
     } catch (e) {
       setStatus('Error: ' + e.message, true);
